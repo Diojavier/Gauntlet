@@ -1,11 +1,5 @@
-
 var WI=window.innerWidth;
 var HE=window.innerHeight;
-
-
-
-
-
 
 var mappaProva=[
 				[1,1,1,1,1,1,1,1,1,1,1,1],
@@ -25,9 +19,13 @@ var mappaProva=[
 
 var mappa= new Terreno(mappaProva);
 
-var Wterr=(mappa.map.length)*32 		//stabilite caselle grandi 32
+var Wterr=(mappa.map.length)*32 		//stabilite caselle grandi 32 px
 var Hterr=(mappa.map[1].length)*32+32
 var giocatore=new Player(64,128,100);
+var livello=1;			//livello attuale da completare
+for (var i = 0; i < livello; i++) {
+	giocatore.createEnemys();
+};
 
 var c=document.getElementById("mainG");
 var a=document.getElementById("actors");
@@ -49,6 +47,7 @@ var enImgs=[] 									// array che contiene tutte le immagini dei nemici
 
 var mx=500;
 var my=500;
+
 
 loadTImages();
 
@@ -76,7 +75,7 @@ var TO_RADIANS = Math.PI/180;
 }
 
 
-var nemicoProva= new NemicoB(1, 128, 128, 0);;
+
 function i_prova(){
 	////console.log("ok... sono i prova")
 	mappa.makeTerr();
@@ -86,10 +85,7 @@ function i_prova(){
 
 function i_update(){
 	actx.clearRect(0,0,Wterr,Hterr);
-	giocatore.move(mappa.map);
-	giocatore.draw();
-	nemicoProva.acts();
-	nemicoProva.draw();
+	giocatore.update();
 	requestAnimationFrame(i_update);
 	
 }
@@ -101,7 +97,7 @@ function loadTImages(){							// callback è la funzione da eseguire al verifica
 	}
 }
 function loadEImages(callback){							// callback è la funzione da eseguire al verificarsi di una condizione. nel nostro caso quando si finisce di caricare tutte le immagini.
-	var timg = ["imgs/boh.png", "imgs/zombie.png"];								//percorso delle immagini, notare che la poszione corrisponde alla "codifica" es: immagine in posizione 0 è il terreno libero, 
+	var timg = ["imgs/boh.png","imgs/zombie.png"];								//percorso delle immagini, notare che la poszione corrisponde alla "codifica" es: immagine in posizione 0 è il terreno libero, 
 	for (var i=0; i< timg.length; i++){					// e nella mappa 0 significa terreno libero
 		loadSingleImg(i,timg,i_prova,1);					// faccio una nuova funzione perchè altrimenti al prossimo ciclo mi sovrascrive l'indice dell'immagine da caricare
 	}
@@ -110,7 +106,7 @@ function loadEImages(callback){							// callback è la funzione da eseguire al 
 function loadSingleImg(i,timg,callback,type){		
 		var nuovaimg = new Image();
 		nuovaimg.src=timg[i];
-		////console.log(timg[i]);
+		//console.log(timg[i]);
 		nuovaimg.onload=function(){
 			if (type==0){								//if elif servono per decidere in quale array mettere l'immagine caricata
 				terrImgs.push(nuovaimg)
@@ -128,34 +124,6 @@ function loadSingleImg(i,timg,callback,type){
 		};
 }
 
-function NemicoB(img,x,y,h){
-	this.img= img;
-	this.x=x;
-	this.y=y;
-	this.rx=(x/32).toFixed();
-	this.ry=(y/32).toFixed();			
-	this.health=h;
-	
-	//metodi
-	this.draw = function(){		// da sostiturie con immagine
-		if (debugP){
-			actx.strokeStyle="pink";
-			actx.strokeRect(this.rx*32-16,this.ry*32-16,30,30);
-		}
-		drawRotatedImage(enImgs[1],this.x,this.y, 0);
-	};
-	this.acts= function(){
-		if(this.rx > giocatore.rx)
-			this.x -=1;
-		else
-			this.x +=1;
-		if(this.ry > giocatore.ry)
-			this.y -=1;
-		else
-			this.y +=1;		
-	}
-
-};
 
 function Terreno(map){			//si assume map matrice
 	this.map =map;
@@ -180,19 +148,25 @@ function Terreno(map){			//si assume map matrice
 function Player(x,y,h){
 	this.x=x;
 	this.y=y;
-	this.rotation=0;
+	this.direction=[];
 	this.movingX=0;
 	this.movingY=0;
 	this.movingCounter=0;
 	this.health=h;
+	this.bullets=[];
+	this.bull=[];
+	this.nemici=[];
+	this.nem=[];
 	this.rx=(x/32).toFixed();
 	this.ry=(y/32).toFixed();
+
 
 	this.referencePosition=function(nx,ny){
 		return([parseInt((this.x+nx)/32).toFixed(), parseInt(((this.y+ny)/32).toFixed())] )
 	}
 
-	this.move=function(map){
+	this.move=function(){
+		var map=mappa.map
 		if(noMove==false){
 			var dir = aCasoBottoni(); //x,y   ---------> #°# <--------
 			mx=my=0;
@@ -201,10 +175,10 @@ function Player(x,y,h){
 			var dy=parseInt(this.ry)+(dir[1])
 			if(map[dy][dx]==0 && (dir[0]!=0 || dir[1]!=0)){
 				noMove=true;
-				this.movingCounter=8
-				this.movingX=dir[0]*4;
-				this.movingY=dir[1]*4;
-				this.rotation=fromDirToRot(dir);
+				this.movingCounter=16
+				this.movingX=dir[0]*2;
+				this.movingY=dir[1]*2;
+				this.direction=dir;
 			}
 		}
 		else{
@@ -222,83 +196,22 @@ function Player(x,y,h){
 				this.ry=((this.y -16)/32 ).toFixed();
 				noMove=false;
 			}
-			console.log(noMove,this.movingX,this.movingY)
+			//console.log(noMove,this.movingX,this.movingY)
 		}
 	}
 
-	this.oldmove=function(map){
-		/*
-		codice tasti
-		da sostituire in #°#
-
-		*/
-		if (debugP){
-			actx.fillStyle="yellow";
-			actx.fillRect(this.rx*32,this.ry*32,5,5);
-			actx.font="10px Georgia";
-			actx.fillText(this.rx+" "+this.ry,this.rx*32,this.ry*32);
-		}
-		var dir = aCasoBottoni(); //x,y   ---------> #°# <--------
-		mx=my=0;
-
-		var dx=this.x+(dir[0]*16)	//prossima posione di this
-		var dy=this.y+(dir[1]*16)
-
-		actx.strokeStyle="pink";
-		actx.strokeRect(dx-16,dy-16,30,30);
-
-		var caselleAdiacenti=[for (i of [-1,0,1]) for (j of [-1,0,1])  [parseInt(this.rx)+i,parseInt(this.ry)+j]];	//considero le 9 coordinate adiacenti a quella del giocatore
-		//console.log(caselleAdiacenti)
-		/*
-		var ca=caselleAdiacenti.filter(function(ls){ if(map[ls[1]][ls[0]]){ 
-														return (map[ls[1]][ls[0]]==0) //prendo solo le caselle vuote e definite
-													}
-													else
-														return false});	
-		*/
-		var ca=[]
-		for(var k = 0; k<caselleAdiacenti.length; k++){
-			if (map[caselleAdiacenti[k][1]][caselleAdiacenti[k][0]]!=0)
-				ca.push([ caselleAdiacenti[k][1],caselleAdiacenti[k][0] ])
-		}
-		//console.log(ca);
-		var libero=[];
-		for(var k = 0; k<ca.length; k++){
-			libero.push(checkCollision(dx,dy,ca[k][0]*32,ca[k][1]*32,32,32))	//per ogni casella adiacente non vuota controllo se collide con la posizione futura di this
-		}
-		//console.log(libero)	
-		var blocked=false
-		if(libero.length>0){		//se il controllo fallisce tutte le caselle adiacenti sono vuote e ogni altro controllo è superfluo
-			blocked=libero.reduce(function(lastVal,nextVal,index,array){
-				console.log(lastVal,nextVal)
-				return lastVal || nextVal;
-			});
-		}
-		if(debug){
-			actx.strokeStyle="yellow";
-			actx.strokeRect(this.rx*32-16,this.ry*32-16,32,32);
-			for(var k=0; k<caselleAdiacenti.length; k++){
-				if(map[caselleAdiacenti[k][1]][caselleAdiacenti[k][0]]==0)
-					actx.strokeStyle="green";
-				else
-					actx.strokeStyle="red";
-				actx.strokeRect(caselleAdiacenti[k][0]*32 -16,caselleAdiacenti[k][1]*32-16,32,32);
-			}
-		}
-
-		//console.log(blocked)
-
-		if(!blocked){
-			this.x=dx;
-			this.y=dy;
-
-			this.rx=((this.x -16)/32).toFixed();
-			this.ry=((this.y -16)/32 ).toFixed();
-			// per spostare i due canvas.
-
+	this.createBullet=function(){
+		//console.log("newBullet")
+		if(this.bullets.length==0){					//NOTA: magari in futuro si faranno più proiettili contemporaneamente... il codice è gia' pronto...
+			var pro=new Bullet(null,this.x,this.y,this.direction)
+			this.bullets.push(pro);
 		}
 	}
-		
+
+	this.createEnemys=function(){
+		var pro=new Nemico(1, 5, 5);
+		this.nemici.push(pro);
+	}
 
 
 	this.draw=function(){
@@ -306,11 +219,169 @@ function Player(x,y,h){
 			actx.strokeStyle="pink";
 			actx.strokeRect(this.rx*32-16,this.ry*32-16,30,30);
 		}
-		drawRotatedImage(enImgs[0],this.x,this.y,this.rotation);
+		drawRotatedImage(enImgs[0],this.x,this.y,fromDirToRot(this.direction));
+	}
+	this.update=function(){
+		this.move();
+		for(var i = 0; i<this.bullets.length; i++){
+			this.bull=this.bullets[i].moveBullets();
+			this.bullets[i].update();
+			if(this.bullets[i].checkDestroyCondition()){
+				this.bullets[i]=null;
+				this.bullets.splice(i,1);
+			}
+		}
+		for(var i = 0; i<this.nemici.length; i++){
+			this.nemici[i].update();
+			this.nem=this.nemici[i].moveEnemys();
+			if(this.nemici[i].checkDeath()){
+				this.nemici[i]=null;
+				this.nemici.splice(i,1);
+			}
+		}
+		this.draw();
+	}
+}
+
+
+
+function Nemico(img,rx,ry){
+	this.rx=rx;					// riferimento della casella
+	this.ry=ry; 
+	this.x=rx*32;
+	this.y=ry*32;
+	this.direzione=[0,0];
+	this.isMoving=false;
+	this.counter=0;
+	this.speed=32;
+	this.img=img;
+	this.health=100;
+
+	this.draw=function(){
+		drawRotatedImage(enImgs[this.img],this.x,this.y,fromDirToRot(this.direzione))	//disegno alle sue  x e y con rotazione data dalla direzione attuale
+	} 
+
+	this.scegliDirezione=function(){
+		var returnDir=[0,0];
+		var nrx = parseInt(this.rx);
+		var nry = parseInt(this.ry);
+		var grx=parseInt(giocatore.rx);
+		var gry=parseInt(giocatore.ry);
+		if(nrx<grx)
+			returnDir[0]=1;
+		else if(nrx>grx)
+			returnDir[0]=-1
+		if(nry<gry)
+			returnDir[1]=1;
+		else if(nry>gry)
+			returnDir[1]=-1
+		return returnDir;
 	}
 
-
+	this.move=function(){
+		if(this.isMoving){
+			this.counter -=1;
+			this.x+=this.direzione[0]*(32/this.speed);
+			this.y+=this.direzione[1]*(32/this.speed);
+			if (this.counter==0){
+				this.isMoving=false;
+			}
+			var newRef  = tabellizeCoords(this.x,this.y,32,32);
+			this.rx=newRef[0];
+			this.ry=newRef[1];
+		}
+		else{
+			var newDir = this.scegliDirezione();
+			if (mappa.map[parseInt(this.ry)+newDir[1]] [parseInt(this.rx)+newDir[0]] ==0){
+				this.isMoving=true;
+				this.counter=this.speed;
+				this.direzione=newDir;
+			}
+		}
+	}
+	this.moveEnemys=function() {
+		return [this.rx, this.ry];
+	}
+	this.update=function(){
+		this.move();
+		this.draw();
+		this.hit();
+		this.checkDeath()			
+	}
+	this.hit=function(){ 				//controlla se il proiettile colpisce il nemico
+		var nrx = parseInt(this.rx);
+		var nry = parseInt(this.ry);
+		var brx = parseInt(giocatore.bull[0]);
+		var bry = parseInt(giocatore.bull[1]);
+		//console.log(nrx, brx, nry, bry);
+		if(nrx==brx && nry == bry)
+			this.health -=100;
+	}
+	this.checkDeath=function(){			//controlla se il nemico muore
+		if(this.health== 0)
+			return true;
+		return false;
+	}
 }
+
+
+
+
+
+function Bullet(img,x,y,dir){
+	this.img=img;
+	this.x =x;
+	this.y=y;
+	var rif =tabellizeCoords(this.x,this.y,8,8)
+	this.rx=rif[0];
+	this.ry=rif[1];		
+	this.dirs=dir;
+
+
+	this.tabCoords=function(){
+	var rif = tabellizeCoords(this.x,this.y,8,8)
+	this.rx=rif[0];
+	this.ry=rif[1];		
+	}
+
+	this.move=function(){
+		this.x+=this.dirs[0]*5;
+		this.y+=this.dirs[1]*5;
+		this.tabCoords();			//aggiorno rx e ry
+		//console.log(this.rx,this.ry)
+	}
+
+	this.moveBullets=function() {
+		return [this.rx, this.ry];
+	}
+
+	this.draw=function(){
+		actx.fillStyle="red";
+		actx.fillRect(this.x-4,this.y-4,8,8)
+	}
+	this.update=function(){
+		this.move()
+		this.draw();
+	}
+	this.checkDestroyCondition=function(){ 			// controlla se il proiettile colpisce il muro o un nemico 
+		var nrx= parseInt(giocatore.nem[0]);
+		var nry= parseInt(giocatore.nem[1]);
+		if(mappa.map[this.ry][this.rx]!=0){
+			return true;
+		}
+		else if(parseInt(this.rx)==nrx && parseInt(this.ry)==nry)
+			return true;
+		return false;
+	};
+}
+
+
+//funzioni di pubblica utilità
+
+function tabellizeCoords(x,y,w,h){			//ritorna coordinate sulla tabella partendo dalle x e y attuali
+	return ([(((x-w/2)/32).toFixed()),( ((y-h/2)/32 ).toFixed() )]);
+}
+
 
 function checkCollision(ax,ay,bx,by,wa,wb){			//controlla se il quad con CENTRO in mx my avente l= wa interseca quello in sx sy wb
 	var dx = castPositive(ax-bx);
@@ -345,7 +416,28 @@ function fromDirToRot(dir){	//dir x,y c.e: {-1 0 1}
 function go(e){
 	var ch= String.fromCharCode(e.keyCode);
 	//console.log(ch)
-	switch (ch){
+	var pd=[]				//proiettile direzione
+	switch (ch){			//trovare soluzione intelligente
+		case 'I':
+			pd=[0,-1]
+			giocatore.direction=pd;
+			giocatore.createBullet();
+			break;
+		case 'K':
+			pd=[0,1]
+			giocatore.direction=pd;
+			giocatore.createBullet();		
+			break;
+		case 'L':
+			pd=[1,0]
+			giocatore.direction=pd;
+			giocatore.createBullet();
+			break;
+		case 'J':
+			pd=[-1,0]
+			giocatore.direction=pd;
+			giocatore.createBullet();
+			break;									
 		case 'S':
 			my=1;
 			break;
@@ -364,6 +456,10 @@ function go(e){
 		case 'I':
 			document.getElementById("servo").style="z-index:0;";
 			break;			
+		case 'Q':
+			console.log("Q");
+			giocatore.createBullet();
+			break;	
 		console.log(document.getElementById("servo"))
 	}
 }
